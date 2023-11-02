@@ -1,2 +1,2 @@
 const add = require("./math");
-console.log(add(3, 4));
+console.log(add(3, 5));
