@@ -15,6 +15,16 @@ router.get("/about", (req, res) => {
 
 const Goods = require("../schemas/goods");
 
+router.get("/goods", async (req, res) => {
+    try {
+        const goods = await Goods.find();
+        res.json({ success: true, goods });
+    } catch (error) {
+        console.error(error); // Log the error
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+});
+
 router.post("/goods", async (req, res) => {
 	const { goodsId, name, thumbnailUrl, category, price } = req.body;
 
