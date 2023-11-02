@@ -15,20 +15,6 @@ router.get("/about", (req, res) => {
 
 const Goods = require("../schemas/goods");
 
-router.get("/goods/cart", async (req, res) => {
-    const carts = await Cart.find();
-    const goodsIds = carts.map((cart) => cart.goodsId);
-  
-    const goods = await Goods.find({ goodsId: goodsIds });
-  
-    res.json({
-        carts: carts.map((cart) => ({
-            quantity: cart.quantity,
-            goods: goods.find((item) => item.goodsId === cart.goodsId),
-        })),
-    });
-});
-
 router.post("/goods", async (req, res) => {
 	const { goodsId, name, thumbnailUrl, category, price } = req.body;
 
@@ -43,6 +29,20 @@ router.post("/goods", async (req, res) => {
 });
 
 const Cart = require("../schemas/cart");
+
+router.get("/goods/cart", async (req, res) => {
+    const carts = await Cart.find();
+    const goodsIds = carts.map((cart) => cart.goodsId);
+  
+    const goods = await Goods.find({ goodsId: goodsIds });
+  
+    res.json({
+        carts: carts.map((cart) => ({
+            quantity: cart.quantity,
+            goods: goods.find((item) => item.goodsId === cart.goodsId),
+        })),
+    });
+});
 
 router.post("/goods/:goodsId/cart", async (req, res) => {
     const { goodsId } = req.params;

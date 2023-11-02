@@ -10,6 +10,8 @@ app.listen(port, () => {
     console.log(port, '포트로 서버가 열렸어요!');
 });
 
+app.use(express.json());
+
 const goodsRouter = require("./routes/goods");
 
 // localhost:3000/api -> goodsRouter
