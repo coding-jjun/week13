@@ -16,6 +16,11 @@ const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true
+    },
+    willBeDeleted: {
+        type: Boolean,
+        required: true,
+        default: false
     }
 });
 

@@ -7,7 +7,8 @@ const router = express.Router();
 
 // jwt로부터 id를 가져오는 method
 function getUserIdFromToken(token) {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, 'secretKey');
+    console.log(decoded);
     return decoded.id;
 }
 
@@ -92,7 +93,9 @@ router.post('/login', async (req, res) => {
 router.delete('/delete-account', async (req, res) => {
     try {
         const token = req.header('Authorization').replace('Bearer ', '');
+        console.log(token);
         const userId = getUserIdFromToken(token);
+        console.log(userId);
       
         // 사용자를 찾아 삭제 대기 상태로 설정
         const user = await User.findByIdAndUpdate(userId, { deleteScheduled: true });

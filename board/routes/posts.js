@@ -16,7 +16,7 @@ const authenticateToken = (req, res, next) => {
     }
 
     // 토큰을 검증합니다.
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    jwt.verify(token, 'secretKey', (err, user) => {
         if (err) {
             return res.status(403).json({ message: "토큰이 유효하지 않습니다", redirectUrl: "/login" });
         }
@@ -98,7 +98,7 @@ router.put("/post/:postId", authenticateToken, async (req, res) => {
             return res.status(400).json({ errorMessage: "비밀번호가 일치하지 않습니다."});
         }
 
-        await Post.updateOne({ postId: postId }, { $set: { content: content } });
+        await Post.findOneAndUpdate({ postId: postId }, { $set: { content: content } });
         res.json({ success: true });              
     } catch (error) {
         res.status(500).json({ errorMessage: "게시물 수정 중 오류가 발생했습니다.", error: error});
