@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const Post = require('../schemas/post');
 const Comment = require("../schemas/comment");
 
 // JWT 검증 미들웨어
@@ -16,7 +17,7 @@ const authenticateToken = (req, res, next) => {
     }
 
     // 토큰을 검증합니다.
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    jwt.verify(token, 'secretKey', (err, user) => {
         if (err) {
             return res.status(403).json({ message: "토큰이 유효하지 않습니다", redirectUrl: "/login" });
         }
@@ -30,12 +31,12 @@ router.get('/post/:postId/comments', async (req, res) => {
     const { postId } = req.params;
 
     try {
-        const comments = await Comment.find({ postId: postId })
+        const comments = await Comment.find({ postId: postId, isActive: true, isHidden: false })
             .select('commentAuthor date content -_id')
             .sort('-date');
         res.status(200).json( comments );
     } catch (error) {
-        res.status(500).json({ message: "Error retrieving comments", error: error });
+        res.status(500).json({ message: "댓글을 조회할 수 없습니다.", error: error });
     }
 });
 
@@ -44,6 +45,11 @@ router.post('/post/:postId/comments', authenticateToken, async (req, res) => {
     const { postId } = req.params;
     const { content } = req.body;
     const userId = req.user.id;
+
+    const post = await Post.findOne({ postId: postId, isActive: true, isHidden: false });
+    if (!post) {
+        res.status(500).json({ message: "댓글을 작성할 수 없습니다." });
+    }
 
     if (!content) {
         return res.status(400).json({ message: "댓글 내용을 입력해주세요" });
@@ -62,22 +68,27 @@ router.post('/post/:postId/comments', authenticateToken, async (req, res) => {
             data: newComment 
         });
     } catch (error) {
-        res.status(500).json({ message: "Error posting comment", error: error });
+        res.status(500).json({ message: "댓글을 작성할 수 없습니다.", error: error });
     }
 });
 
 // 댓글 수정
 router.put('/post/:postId/comments/:commentId', authenticateToken, async (req, res) => {
-    const { commentId } = req.params;
+    const { postId, commentId } = req.params;
     const { content } = req.body;
     const userId = req.user.id;
+
+    const post = await Post.findOne({ postId: postId, isActive: true, isHidden: false });
+    if (!post) {
+        res.status(500).json({ message: "댓글을 수정할 수 없습니다." });
+    }
 
     if (!content.trim()) {
         return res.status(400).json({ message: "댓글 내용을 입력해주세요" });
     }
 
     try {
-        const updateComment = await Comment.findOne({ commentId: commentId });
+        const updateComment = await Comment.findOne({ commentId: commentId, isActive: true });
 
         if (!updateComment) {
             return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
@@ -88,9 +99,9 @@ router.put('/post/:postId/comments/:commentId', authenticateToken, async (req, r
 
         await Comment.updateOne({ commentAuthor: userId }, { $set: { content: content } });
 
-        res.status(200).json(updatedComment);
+        res.status(200).json(updateComment);
     } catch (error) {
-        res.status(500).json({ message: "Error updating comment", error: error });
+        res.status(500).json({ message: "댓글을 수정할 수 없습니다.", error: error });
     }
 });
 
@@ -99,18 +110,23 @@ router.delete('/post/:postId/comments/:commentId', authenticateToken, async (req
     const { commentId } = req.params;
     const userId = req.user.id;
 
+    const post = await Post.findOne({ postId: postId, isActive: true, isHidden: false });
+    if (!post) {
+        res.status(500).json({ message: "댓글을 삭제할 수 없습니다." });
+    }
+
     try {
         const deletedComment = await Comment.findOneAndDelete({ commentId: commentId });
         if (!deletedComment) {
-            return res.status(404).json({ message: "Comment not found" });
+            return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
         }
         if (deletedComment.commentAuthor !== userId) {
             return res.status(403).json({ errorMessage: "본인이 작성한 댓글만 삭제할 수 있습니다."});
         }
 
-        res.status(200).json({ message: "Comment deleted" });
+        res.status(200).json({ message: "댓글이 삭제되었습니다." });
     } catch (error) {
-        res.status(500).json({ message: "Error deleting comment", error: error });
+        res.status(500).json({ message: "댓글을 삭제할 수 없습니다.", error: error });
     }
 });
 

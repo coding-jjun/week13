@@ -24,6 +24,18 @@ const commentSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    isEdited: {
+        type: Boolean,
+        default: false,
+    },
+    isHidden: {
+        type: Boolean,
+        default: false
     }
 });
 

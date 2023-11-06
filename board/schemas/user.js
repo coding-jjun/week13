@@ -19,8 +19,11 @@ const userSchema = new mongoose.Schema({
     },
     willBeDeleted: {
         type: Boolean,
-        required: true,
         default: false
+    },
+    isActive: {
+        type: Boolean,
+        default: true
     }
 });
 

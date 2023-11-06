@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require("../schemas/user");
+const Post = require("../schemas/post");
+const Comment = require("../schemas/comment");
 const schedule = require('node-schedule');
 const { errorMonitor } = require('events');
 const router = express.Router();
@@ -8,7 +10,6 @@ const router = express.Router();
 // jwt로부터 id를 가져오는 method
 function getUserIdFromToken(token) {
     const decoded = jwt.verify(token, 'secretKey');
-    console.log(decoded);
     return decoded.id;
 }
 
@@ -71,9 +72,16 @@ router.post('/login', async (req, res) => {
 
     try {
         const user = await User.findByCredentials(nickname, password);
+        const userId = user.userId;
+
+        // 비활성화된 계정인 경우, 계정 복구
+        if (user.willBeDeleted || !user.isActive) {
+            await Post.updateMany({ postAuthor: userId }, { $set: { isActive: true }});
+            await Comment.updateMany({ commentAuthor: userId }, { $set: { isActive: true }});
+        }
 
         // JWT 토큰 생성
-        const token = jwt.sign({ id: user.userId }, 'secretKey', { expiresIn: '2h' });
+        const token = jwt.sign({ id: userId }, 'secretKey', { expiresIn: '2h' });
 
         // 쿠키에 JWT 저장
         res.cookie('auth_token', token, {
@@ -89,50 +97,61 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// 계정 탈퇴 API
-router.delete('/delete-account', async (req, res) => {
+// 계정 비활성화 API
+router.put('/user/deactivate', async (req, res) => {
     try {
         const token = req.header('Authorization').replace('Bearer ', '');
-        console.log(token);
         const userId = getUserIdFromToken(token);
-        console.log(userId);
       
         // 사용자를 찾아 삭제 대기 상태로 설정
-        const user = await User.findByIdAndUpdate(userId, { deleteScheduled: true });
+        const user = await User.findOne({ userId: userId });
         if (!user) {
-            return res.status(404).send('User not found.');
+            return res.status(404).json({ message: "유저가 존재하지 않습니다." });
         }
+        
+        await User.findOneAndUpdate({ userId: userId }, { $set: { isActive: false }});
+
+        // User와 연관된 모든 게시글과 댓글의 상태를 비활성화로 변경
+        await Post.updateMany({ postAuthor: userId }, { $set: { isActive: false }});
+        await Comment.updateMany({ commentAuthor: userId }, { $set: { isActive: false }});
+  
+        res.send("계정이 비활성화되었습니다.");
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
+
+// 계정 탈퇴 API
+router.delete('/user/delete', async (req, res) => {
+    try {
+        const token = req.header('Authorization').replace('Bearer ', '');
+        const userId = getUserIdFromToken(token);
       
+        // 사용자를 찾아 삭제 대기 상태로 설정
+        const user = await User.findOneAndUpdate({ userId: userId }, { $set: { willBeDeleted: true }});
+        if (!user) {
+            return res.status(404).json({ message: "유저가 존재하지 않습니다." });
+        }
+        
+        // 스케줄러가 실행되기 전 사용자의 모든 게시글과 댓글을 비활성화
+        await Post.updateMany({ postAuthor: userId }, { $set: { isActive: false }});
+        await Comment.updateMany({ commentAuthor: userId }, { $set: { isActive: false }});
+
         // node-schedule을 사용하여 2분 후 삭제 실행
         schedule.scheduleJob(Date.now() + 120000, async function(){
-            if (user.deleteScheduled) {
-                await User.findOneAndDelete({userId: userId});
+            const userToDelete = await User.findOne({ userId: userId });
+            if (userToDelete.willBeDeleted) {
+                await Post.deleteMany({ postAuthor: userId });
+                await Comment.deleteMany({ commentAuthor: userId });
+                await User.findOneAndDelete({ userId: userId });
             }
-    });
+        });
   
         res.send('Account deletion scheduled. You have 2 minutes to cancel.');
     } catch (error) {
         res.status(500).send(error.toString());
     }
 });
-
-// 계정 복구 API
-router.post('/recover-account', async (req, res) => {
-    try {
-      const token = req.header('Authorization').replace('Bearer ', '');
-      const userId = getUserIdFromToken(token);
-      
-      // 사용자를 찾아 삭제 대기 상태를 해제
-      const user = await User.findByIdAndUpdate(userId, { deleteScheduled: false });
-      if (!user) {
-        return res.status(404).send('User not found or already deleted.');
-      }
-      
-      res.send('Account recovery successful. Your account will not be deleted.');
-    } catch (error) {
-      res.status(500).send(error.toString());
-    }
-  });
-
 
 module.exports = router;

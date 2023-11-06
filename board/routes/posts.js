@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const Post = require("../schemas/post");
+const Comment = require("../schemas/comment");
 
 // JWT 검증 미들웨어
 const authenticateToken = (req, res, next) => {
@@ -28,7 +29,7 @@ const authenticateToken = (req, res, next) => {
 // 전체 게시글 조회
 router.get("/post", async(req, res) => {
     try {
-        const posts = await Post.find()
+        const posts = await Post.find({ isActive: true })
             .select('title postAuthor date -_id') // _id 필드를 제외하고, title, postAuthor, date 필드만 선택합니다.
             .sort('-date'); // 작성 날짜(date) 기준 내림차순으로 정렬합니다.
         res.status(200).json( posts );
@@ -39,13 +40,12 @@ router.get("/post", async(req, res) => {
 
 // 게시글 작성 API
 router.post('/post', authenticateToken, async (req, res) => {
-    const { postPw, title, content } = req.body;
+    const { title, content } = req.body;
     const userId = req.user.id;
 
     try {
         // create 메소드를 사용하여 새 게시글 문서를 생성하고 저장합니다.
         const newPost = await Post.create({
-            postPw,
             title,
             postAuthor: userId,
             content
@@ -68,10 +68,11 @@ router.get("/post/:postId", async (req, res) => {
 
     try {
         // findOne 메서드를 사용하여 단일 문서를 조회합니다.
-        const post = await Post.findOne({ postId: postId }).select('title postAuthor date content -_id');
+        const post = await Post.findOne({ postId: postId, isActive: true })
+            .select('title postAuthor date content -_id');
 
         if (!post) {
-            return res.status(404).json({ message: "Post not found" });
+            return res.status(404).json({ message: "게시글을 찾을 수 없습니다." });
         }
 
         res.status(200).json(post); // 조회된 게시글을 반환합니다.
@@ -84,44 +85,83 @@ router.get("/post/:postId", async (req, res) => {
 router.put("/post/:postId", authenticateToken, async (req, res) => {
     const { postId } = req.params;
     const userId = req.user.id;
-    const { postPw, content } = req.body;
+    const { content } = req.body;
 
     try {
-        const existPost = await Post.findOne({ postId : postId });
+        const existPost = await Post.findOne({ postId : postId, isActive: true });
         if (!existPost) {
-            return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."});
+            return res.status(400).json({ errorMessage: "존재하지 않는 게시글입니다."});
         } 
         if (existPost.postAuthor !== userId) {
-            return res.status(403).json({ errorMessage: "본인이 작성한 게시물만 수정할 수 있습니다."});
-        }
-        if (existPost.postPw !== postPw) {
-            return res.status(400).json({ errorMessage: "비밀번호가 일치하지 않습니다."});
+            return res.status(403).json({ errorMessage: "본인이 작성한 게시글만 수정할 수 있습니다."});
         }
 
         await Post.findOneAndUpdate({ postId: postId }, { $set: { content: content } });
         res.json({ success: true });              
     } catch (error) {
-        res.status(500).json({ errorMessage: "게시물 수정 중 오류가 발생했습니다.", error: error});
+        res.status(500).json({ errorMessage: "게시글 수정 중 오류가 발생했습니다.", error: error});
     }
 });
+
+// 게시글 숨김 API
+router.patch("/post/:postId", authenticateToken, async (req, res) => {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const post = await Post.findOne({ postId: postId, isActive: true, isHidden: false });
+        if (!post) {
+            return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."})
+        }
+        if (existPost.postAuthor !== userId) {
+            return res.status(403).json({ errorMessage: "본인이 작성한 게시글만 숨길 수 있습니다."});
+        }
+
+        await Post.updateOne({ postId: postId }, { $set: { isHidden: true }});
+        await Comment.updateMany({ postId: postId }, { $set: { isHidden: true }});
+        res.json({ result: "success" });
+    } catch (error) {
+        res.status(500).json({ errorMessage: "게시글 숨김 중 오류가 발생했습니다.", error: error});
+    }
+});
+
+// 게시글 복원 API
+router.patch("/post/:postId", authenticateToken, async (req, res) => {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const post = await Post.findOne({ postId: postId, isActive: true, isHidden: true });
+        if (!post) {
+            return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."})
+        }
+        if (existPost.postAuthor !== userId) {
+            return res.status(403).json({ errorMessage: "본인이 작성한 게시글만 복원할 수 있습니다."});
+        }
+
+        await Post.updateOne({ postId: postId }, { $set: { isHidden: false }});
+        await Comment.updateMany({ postId: postId }, { $set: { isHidden: false } });
+        res.json({ result: "success" });
+    } catch (error) {
+        res.status(500).json({ errorMessage: "게시글 복원 중 오류가 발생했습니다.", error: error});
+    }
+});
+
 
 // 게시글 삭제 API
 router.delete("/post/:postId", authenticateToken, async (req, res) => {
     const { postId } = req.params;
-    const { postPw } = req.body;
     const userId = req.user.id;
 
     try {
-        const existPost = await Post.findOne({ postId: postId });
+        const existPost = await Post.findOne({ postId: postId, isActive: true });
         if (!existPost) {
             return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."});
         }
         if (existPost.postAuthor !== userId) {
             return res.status(403).json({ errorMessage: "본인이 작성한 게시물만 삭제할 수 있습니다."});
         }
-        if (existPost.postPw !== postPw) {
-            return res.status(400).json({ errorMessage: "비밀번호가 일치하지 않습니다."});
-        }
+
         await Post.deleteOne({ postId: postId });
         res.json({ result: "success" });    
     } catch (error) {

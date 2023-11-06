@@ -8,10 +8,6 @@ const postSchema = new mongoose.Schema({
         unique: true,
         default: uuidv4
     },
-    postPw: {
-        type: String,
-        required: true
-    },
     title: {
         type: String,
         required: true
@@ -28,6 +24,18 @@ const postSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    isEdited: {
+        type: Boolean,
+        default: false,
+    },
+    isHidden: {
+        type: Boolean,
+        default: false
     }
 });
 
