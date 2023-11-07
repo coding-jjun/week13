@@ -29,7 +29,7 @@ const authenticateToken = (req, res, next) => {
 // 전체 게시글 조회
 router.get("/post", async(req, res) => {
     try {
-        const posts = await Post.find({ isActive: true })
+        const posts = await Post.find({ isActive: true, isHidden: false })
             .select('title postAuthor date -_id') // _id 필드를 제외하고, title, postAuthor, date 필드만 선택합니다.
             .sort('-date'); // 작성 날짜(date) 기준 내림차순으로 정렬합니다.
         res.status(200).json( posts );
