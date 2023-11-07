@@ -115,7 +115,7 @@ router.put('/user/deactivate', async (req, res) => {
         await Post.updateMany({ postAuthor: userId }, { $set: { isActive: false }});
         await Comment.updateMany({ commentAuthor: userId }, { $set: { isActive: false }});
   
-        res.send("계정이 비활성화되었습니다.");
+        res.status(200).json({ message: "계정이 비활성화되었습니다." });
     } catch (error) {
         res.status(500).send(error.toString());
     }
@@ -148,7 +148,7 @@ router.delete('/user/delete', async (req, res) => {
             }
         });
   
-        res.send('Account deletion scheduled. You have 2 minutes to cancel.');
+        res.status(200).json({ message: "~~일동안 재로그인을 하지 않을 시 계정이 영구적 삭제됩니다."});
     } catch (error) {
         res.status(500).send(error.toString());
     }
