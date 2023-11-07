@@ -104,7 +104,7 @@ router.put("/post/:postId", authenticateToken, async (req, res) => {
 });
 
 // 게시글 숨김 API
-router.patch("/post/:postId", authenticateToken, async (req, res) => {
+router.patch("/post/:postId/hide", authenticateToken, async (req, res) => {
     const { postId } = req.params;
     const userId = req.user.id;
 
@@ -126,7 +126,7 @@ router.patch("/post/:postId", authenticateToken, async (req, res) => {
 });
 
 // 게시글 복원 API
-router.patch("/post/:postId", authenticateToken, async (req, res) => {
+router.patch("/post/:postId/unhide", authenticateToken, async (req, res) => {
     const { postId } = req.params;
     const userId = req.user.id;
 
