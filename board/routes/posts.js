@@ -113,7 +113,7 @@ router.patch("/post/:postId/hide", authenticateToken, async (req, res) => {
         if (!post) {
             return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."})
         }
-        if (existPost.postAuthor !== userId) {
+        if (post.postAuthor !== userId) {
             return res.status(403).json({ errorMessage: "본인이 작성한 게시글만 숨길 수 있습니다."});
         }
 
@@ -135,7 +135,7 @@ router.patch("/post/:postId/unhide", authenticateToken, async (req, res) => {
         if (!post) {
             return res.status(400).json({ errorMessage: "존재하지 않는 게시물입니다."})
         }
-        if (existPost.postAuthor !== userId) {
+        if (post.postAuthor !== userId) {
             return res.status(403).json({ errorMessage: "본인이 작성한 게시글만 복원할 수 있습니다."});
         }
 
